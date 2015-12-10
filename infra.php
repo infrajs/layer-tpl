@@ -5,8 +5,19 @@ use infrajs\path\Path;
 use infrajs\view\View;
 use infrajs\layer\tpl\Tpl;
 
+/**
+ * У слоя созданы свойства
+ * tpl, json, dataroot, tplroot, data, tplcheck, datacheck
+ **/
 
+Path::req('*controller/infra.php');
 
+Event::handler('oninit', function () {
+	Layer::parsedAdd('tpl');
+	Layer::parsedAdd('json');
+	Layer::parsedAdd('dataroot');
+	Layer::parsedAdd('tplroot');
+}, 'tpl');
 
 
 Event::handler('layer.oncheck', function (&$layer) {
@@ -23,10 +34,10 @@ Event::handler('layer.isshow', function (&$layer) {
 
 	$r = true;
 	if (!empty($layer['parent'])) {//Пустой слой не должен обрывать наследования если какой=то родитель скрывает всю ветку		
-		$r = Controller::isSaveBranch($layer['parent']);
+		$r = $layer['parent']['is_save_branch'];
 		if (is_null($r)) $r = true;
 	}
-	Controller::isSaveBranch($layer, $r);
+	$layer['is_save_branch'] = $r;
 	return false;
 }, 'tpl:div,is');
 
@@ -42,23 +53,19 @@ Event::handler('layer.isshow', function (&$layer) {
 }, 'tpl:div,is');
 Event::handler('layer.isshow', function (&$layer) {
 	//tpl depricated
-	if (Tpl::onlyclient($layer)) return;
+	if (Layer::pop($layer, 'onlyclient')) return;
 	return Tpl::jsoncheck($layer);
 }, 'tpl:div,is');
 
 
 Event::handler('layer.onshow', function (&$layer) {
-	if (Tpl::onlyclient($layer)) {
-		return;
-	}
+	if (Layer::pop($layer, 'onlyclient')) return;
 	$layer['html'] = Tpl::getHtml($layer);
 }, 'tpl:div');
 
 Event::handler('layer.onshow', function (&$layer) {
 	//tpl
-	if (Tpl::onlyclient($layer)) {
-		return;
-	}
+	if (Layer::pop($layer, 'onlyclient')) return;
 	if(!empty($layer['div'])){
 		$div = $layer['div'];
 	}else{

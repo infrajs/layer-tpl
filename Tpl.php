@@ -1,28 +1,13 @@
 <?php
 
-//Обработка onshow и onhide, tpl, data, onlyclient, onlyserver, tplclientparse, parsed, datacheck, tplcheck
-//infrajs_parsedAdd
-//infrajs_parsed
-
-
 namespace infrajs\layer\tpl;
-use infrajs\layer\parsed\Parsed;
+use infrajs\controller\Layer;
 use infrajs\access\Access;
+use infrajs\template\Template;
+use infrajs\controller\Each;
 
-global $infra;
-global $infrajs;
 class Tpl
 {
-	public static function onlyclient(&$layer)
-	{
-		$parent = $layer;
-		while ($parent) {
-			if (@$parent['onlyclient']) {
-				return true;
-			}
-			$parent = @$parent['parent'];
-		}
-	}
 	public static function tplroottpl(&$layer)
 	{
 		$prop = 'tplroot';
@@ -32,10 +17,10 @@ class Tpl
 		}
 		$p = $layer[$proptpl];
 		if (is_array($layer[$proptpl])) {
-			$p = infra_template_parse($p, $layer);
+			$p = Template::parse($p, $layer);
 			$layer[$prop] = array($p);
 		} else {
-			$layer[$prop] = infra_template_parse(array($p), $layer);
+			$layer[$prop] = Template::parse(array($p), $layer);
 		}
 	}
 	public static function dataroottpl(&$layer)
@@ -46,7 +31,7 @@ class Tpl
 			return;
 		}
 		$p = $layer[$proptpl];
-		$layer[$prop] = infra_template_parse(array($p), $layer);
+		$layer[$prop] = Template::parse(array($p), $layer);
 	}
 	public static function tpltpl(&$layer)
 	{
@@ -60,7 +45,7 @@ class Tpl
 		if (!$ar) {
 			$p = array($p);
 		}
-		$p = infra_template_parse($p, $layer);
+		$p = Template::parse($p, $layer);
 		if ($ar) {
 			$layer[$prop] = array($p);
 		} else {
@@ -79,7 +64,7 @@ class Tpl
 		if (!$ar) {
 			$p = array($p);
 		}
-		$p = infra_template_parse($p, $layer);
+		$p = Template::parse($p, $layer);
 		if ($ar) {
 			$layer[$prop] = array($p);
 		} else {
@@ -123,8 +108,8 @@ class Tpl
 	{
 		//Вызывается как для основных так и для подслойв tpls frame. Расширяется в tpltpl.prop.js
 		//if(@$layer['tplclient'])return '';
-		$row = Parsed::check($layer);
-		//$row=$_SERVER['QUERY_STRING'],$layer['unick'];
+		$row = Layer::parsed($layer);
+		//$row=$_SERVER['QUERY_STRING'],$layer['id'];
 		//Нельзя кэшировать слои в которых показываются динамические данные, данные пользователя определяется заголовком у данных
 		//Кэш создаётся от любого пользователя.
 		//Чтобы узнать что кэш делать не нужно... это знают данные они либо js либо php
@@ -138,17 +123,12 @@ class Tpl
 
 		//Проблема при первом session_get конект к базе и вызов session_init в следующем подключении init не вызывается
 		//но для следующего подключения нам нужно понять что есть динамика// По этому загловки отправляются в том числе и руками в скритпах  Cache-Control:no-cache
-		$dhtml = Access::adminCache('infrajs_getHtml', function () use (&$layer) {
-			global $infrajs;
-			$infrajs['layer'] = &$layer;//в скриптах будет доступ к последнему вставленному слою
+		$html = Access::adminCache('infrajs_getHtml', function () use (&$layer) {
 			//Здесь мог быть установлен infrajs['com'] его тоже нужно вернуть/ А вот после loadTEXT мог быть кэш и ничего не установится
-			$html = tpl::_getHtml($layer);
+			$html = Tpl::_getHtml($layer);
 
-			return array($html, $infrajs['com']);
+			return $html;
 		}, array($row));//Кэш обновляемый с последней авторизацией админа определяется строкой parsed слоя
-		$html = $dhtml[0];
-
-		$infrajs['com'] = $dhtml[1];//Применять надо здесь вне кэша getHTML
 
 		return $html;
 	}
@@ -157,14 +137,13 @@ class Tpl
 		//Вызывается как для основных так и для подслойв tpls frame. Расширяется в tpltpl.prop.js
 
 		if (@$layer['data'] || @$layer['json'] || @$layer['tpls'] || @$layer['tplroot']) {
-			$tpls = infra_template_make($layer['tpl']);//С кэшем перепарсивания
-			infra_template_includes($tpls);
-			global $infra,$infrajs;
-			$infrajs['com'] = @$infra['com'];
+			$tpls = Template::make($layer['tpl']);//С кэшем перепарсивания
+			Template::includes($tpls);
+			
 			$repls = array();//- подшаблоны для замены, Важно, что оригинальный распаршеный шаблон не изменяется
 			Each::fora($layer['tplsm'], function ($tm) use (&$repls) {
 				//mix tpl
-				$t = infra_template_make($tm);//С кэшем перепарсивания
+				$t = Template::make($tm);//С кэшем перепарсивания
 				array_push($repls, $t);
 				//for(var i in t)repls[i]=t[i];//Нельзя подменять в оригинальном шаблоне, который в других местах может использоваться без подмен
 				//^ из-за этого обработчики указанные в tplsm срабатывают постоянно, так как нельзя поставить отметку о том что обработчик сохранён
@@ -175,12 +154,11 @@ class Tpl
 
 			$alltpls = array(&$repls,&$tpls);
 
-			$html = infra_template_exec($alltpls, $layer, @$layer['tplroot'], @$layer['dataroot']);
+			$html = Template::exec($alltpls, $layer, @$layer['tplroot'], @$layer['dataroot']);
 		} else {
 			$tpl = self::getTpl($layer);
 
-			global $infra,$infrajs;
-			$infrajs['com'] = @$infra['com'];
+			
 			$html = $tpl;
 		}
 		if (!$html) {
