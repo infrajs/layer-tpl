@@ -3,5 +3,8 @@
 	"license": "GPL3",
 	"autoload": {
 		"psr-4": { "infrajs\\layer\\tpl\\": "/" }
+	},
+	"require":{
+		"infrajs/layer-parsed":"~1"
 	}
 }

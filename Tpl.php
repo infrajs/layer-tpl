@@ -5,11 +5,13 @@
 //infrajs_parsed
 
 
-namespace infrajs\controller\ext;
+namespace infrajs\layer\tpl;
+use infrajs\layer\parsed\Parsed;
+use infrajs\access\Access;
 
 global $infra;
 global $infrajs;
-class tpl
+class Tpl
 {
 	public static function onlyclient(&$layer)
 	{
@@ -121,7 +123,7 @@ class tpl
 	{
 		//Вызывается как для основных так и для подслойв tpls frame. Расширяется в tpltpl.prop.js
 		//if(@$layer['tplclient'])return '';
-		$row = parsed::check($layer);
+		$row = Parsed::check($layer);
 		//$row=$_SERVER['QUERY_STRING'],$layer['unick'];
 		//Нельзя кэшировать слои в которых показываются динамические данные, данные пользователя определяется заголовком у данных
 		//Кэш создаётся от любого пользователя.
@@ -136,7 +138,7 @@ class tpl
 
 		//Проблема при первом session_get конект к базе и вызов session_init в следующем подключении init не вызывается
 		//но для следующего подключения нам нужно понять что есть динамика// По этому загловки отправляются в том числе и руками в скритпах  Cache-Control:no-cache
-		$dhtml = infra_admin_cache('infrajs_getHtml', function () use (&$layer) {
+		$dhtml = Access::adminCache('infrajs_getHtml', function () use (&$layer) {
 			global $infrajs;
 			$infrajs['layer'] = &$layer;//в скриптах будет доступ к последнему вставленному слою
 			//Здесь мог быть установлен infrajs['com'] его тоже нужно вернуть/ А вот после loadTEXT мог быть кэш и ничего не установится
